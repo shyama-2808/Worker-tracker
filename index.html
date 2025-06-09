@@ -157,7 +157,7 @@
   }
 
 
-/* Fix for Edit/Delete buttons overflowing */
+
 .history td:last-child,
 #workerTableBody td:last-child {
   display: flex;
@@ -819,11 +819,11 @@ window.deleteEntry = function(name, date) {
 document.getElementById('viewDatewiseBtn').addEventListener('click', () => {
     const div = document.getElementById('datewiseHistoryDisplay');
     if (div.innerHTML.trim()) {
-      div.innerHTML = ''; // Toggle off
+      div.innerHTML = ''; 
       return;
     }
 
-    // Collect all unique dates
+   
     const dateMap = {};
     Object.entries(workers).forEach(([name, data]) => {
       Object.entries(data.history).forEach(([date, entry]) => {
@@ -912,7 +912,7 @@ document.getElementById('downloadMonthlyPdfBtn').addEventListener('click', () =>
   updateTable();
   populateExistingWorkers();
 
-  }); // end DOMContentLoaded
+  });
 
 </script>
 <hr>
@@ -1015,18 +1015,18 @@ document.getElementById('downloadMonthlyPdfBtn').addEventListener('click', () =>
     const toggleBtn = document.getElementById("toggleWageSettings");
     const wageSettings = document.getElementById("wageSettings");
 
-    // Toggle visibility
+   
     toggleBtn.addEventListener("click", () => {
       wageSettings.style.display = wageSettings.style.display === "none" ? "block" : "none";
     });
 
-    // Load wages from localStorage
+   
     const savedMaleWage = localStorage.getItem("maleWage");
     const savedFemaleWage = localStorage.getItem("femaleWage");
     maleWageInput.value = savedMaleWage || 800;
     femaleWageInput.value = savedFemaleWage || 600;
 
-    // Save on change
+  
     maleWageInput.addEventListener("input", () => {
       localStorage.setItem("maleWage", maleWageInput.value);
     });
@@ -1034,7 +1034,7 @@ document.getElementById('downloadMonthlyPdfBtn').addEventListener('click', () =>
       localStorage.setItem("femaleWage", femaleWageInput.value);
     });
 
-    // Override form submission logic to use dynamic wage
+
     const originalForm = document.getElementById("workerForm");
     const originalHandler = originalForm.onsubmit;
 
@@ -1135,10 +1135,10 @@ document.getElementById('downloadMonthlyPdfBtn').addEventListener('click', () =>
         return;
       }
 
-      // Add total row with styling hint
+   
       data.push(["Total", totalDays, totalWages, totalExtras, totalAmount]);
 
-      // Create workbook and worksheet
+  
       const ws = XLSX.utils.aoa_to_sheet(data);
 
       
@@ -1203,10 +1203,9 @@ document.getElementById('downloadMonthlyPdfBtn').addEventListener('click', () =>
         return;
       }
 
-      // Add total row
+    
       data.push(["Total", totalDays, totalWages, totalExtras, totalAmount]);
 
-      // Generate PDF using jsPDF and autoTable
       const doc = new jspdf.jsPDF();
       doc.text(`Monthly Summary - ${selectedMonth}`, 14, 15);
 
@@ -1230,13 +1229,11 @@ document.getElementById('downloadMonthlyPdfBtn').addEventListener('click', () =>
           const rowIndex = dataCell.row.index;
           const colIndex = dataCell.column.index;
 
-          // Highlight total row
           if (rowIndex === data.length - 2) {
             dataCell.cell.styles.fontStyle = 'bold';
             dataCell.cell.styles.fillColor = [230, 230, 230];
           }
 
-          // Bold the "Total Amount" column (index 4)
           if (colIndex === 4) {
             dataCell.cell.styles.fontStyle = 'bold';
           }
@@ -1321,13 +1318,13 @@ document.getElementById('downloadMonthlyPdfBtn').addEventListener('click', () =>
           const rowIndex = dataCell.row.index;
           const colIndex = dataCell.column.index;
 
-          // Total row
+          
           if (rowIndex === data.length - 2) {
             dataCell.cell.styles.fontStyle = 'bold';
             dataCell.cell.styles.fillColor = [230, 230, 230];
           }
 
-          // Total Amount column (5th column)
+
           if (colIndex === 4) {
             dataCell.cell.styles.fontStyle = 'bold';
           }
