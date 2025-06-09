@@ -1,0 +1,1378 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Worker Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      margin: 20px;
+    }
+    h1, h2 {
+      text-align: center;
+    }
+    form, table {
+      max-width: 600px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    input, select, button, textarea {
+      margin: 10px 0;
+      padding: 10px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .gender-container, .presence-container {
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+    }
+    .gender-btn, .presence-btn {
+      padding: 10px 20px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      cursor: pointer;
+      user-select: none;
+    }
+    .gender-btn.selected.male {
+      background-color: #add8e6;
+    }
+    .gender-btn.selected.female {
+      background-color: #ffc0cb;
+    }
+    .presence-btn.present {
+      background-color: #e0f8e9;
+      color: #2e7d32;
+    }
+    .presence-btn.absent {
+      background-color: #fbe9e7;
+      color: #c62828;
+    }
+    .presence-btn.selected {
+      font-weight: bold;
+      box-shadow: 0 0 5px rgba(0,0,0,0.2);
+    }
+    .scrollable-table {
+      overflow-x: auto;
+    }
+    .history-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+  white-space: nowrap;
+  border: 1px solid #ddd;
+  padding: 8px;
+  border-radius: 8px;
+  background-color: #fafafa;
+  scroll-behavior: smooth;
+}
+    table {
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 10px;
+      border: 1px solid #ccc;
+      text-align: center;
+    }
+    #clearDataBtn {
+      display: block;
+      margin: 10px auto;
+      padding: 10px 20px;
+      font-size: 16px;
+      border-radius: 5px;
+      border: none;
+      cursor: pointer;
+    }
+    
+    #clearDataBtn {
+      background-color: #e74c3c;
+      color: white;
+    }
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #333;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 5px;
+      opacity: 0;
+      transition: opacity 0.5s;
+      z-index: 999;
+    }
+    .toast.show {
+      opacity: 1;
+    }
+    .history {
+      max-width: 600px;
+      margin: 20px auto;
+    }
+    #nameField {
+      display: none;
+    }
+  
+  .gender-container {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 10px;
+  }
+
+  .gender-btn {
+    flex: 1;
+    padding: 12px 20px;
+    font-size: 16px;
+    border-radius: 10px;
+    background-color: white;
+    border: 2px solid #ccc;
+    font-weight: 500;
+    transition: all 0.3s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+
+  .gender-btn.selected.male {
+    background-color: #e6f2ff;
+    color: #0d6efd;
+    border-color: #0d6efd;
+  }
+
+  .gender-btn.selected.female {
+    background-color: #ffe6f0;
+    color: #d63384;
+    border-color: #d63384;
+  }
+
+
+/* Fix for Edit/Delete buttons overflowing */
+.history td:last-child,
+#workerTableBody td:last-child {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+.history button,
+#workerTableBody button {
+  flex: 1 1 45%;
+  max-width: 100px;
+  font-size: 13px;
+  padding: 6px 8px;
+  margin: 4px;
+  white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+  .history button,
+  #workerTableBody button {
+    font-size: 12px;
+    padding: 5px 6px;
+  }
+}
+
+</style>
+
+<style>
+  form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .gender-container, .presence-container {
+    display: flex;
+    justify-content: space-around;
+    flex-wrap: wrap;
+  }
+
+  input, select, textarea, button {
+    width: 100% !important;
+    box-sizing: border-box;
+  }
+
+  textarea {
+    resize: vertical;
+    writing-mode: horizontal-tb !important;
+    height: 60px;
+  }
+
+  #summaryMonthPicker, #downloadMonthlySummaryCsvBtn, #clearDataBtn {
+    margin-top: 10px;
+  }
+
+  #workerForm input[type="date"] {
+    padding: 10px;
+  }
+
+  @media (max-width: 768px) {
+    .gender-btn, .presence-btn {
+      flex: 1 1 45%;
+      margin: 5px;
+    }
+  }
+</style>
+
+
+<style>
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: #f9f9fb;
+    color: #333;
+  }
+
+  h1, h2 {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 0.5em;
+  }
+
+  form, table {
+    max-width: 720px;
+    margin: 20px auto;
+    background: white;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  }
+
+  input, select, textarea, button {
+    padding: 12px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 15px;
+    margin-top: 8px;
+  }
+
+  button {
+    background-color: #007bff;
+    color: white;
+    font-weight: 500;
+    border: none;
+    transition: background-color 0.3s ease;
+  }
+
+  button:hover {
+    background-color: #0056b3;
+  }
+
+  .gender-btn, .presence-btn {
+    padding: 10px 18px;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+
+  .gender-btn.selected.male {
+    background-color: #cce5ff;
+    border-color: #66b0ff;
+  }
+
+  .gender-btn.selected.female {
+    background-color: #ffd6e0;
+    border-color: #ff99b0;
+  }
+
+  .presence-btn.present.selected {
+    background-color: #d4edda;
+    color: #2e7d32;
+  }
+
+  .presence-btn.absent.selected {
+    background-color: #f8d7da;
+    color: #c62828;
+  }
+
+  .scrollable-table {
+    overflow-x: auto;
+  }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 15px;
+  }
+
+  th {
+    background: #f0f0f0;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
+  th, td {
+    padding: 12px 10px;
+    border: 1px solid #e0e0e0;
+    text-align: center;
+  }
+
+  tbody tr:nth-child(even) {
+    background: #fcfcfc;
+  }
+
+  tbody tr:hover {
+    background-color: #f1f7ff;
+  }
+
+  .toast {
+    font-size: 14px;
+    background: #222;
+    padding: 12px 20px;
+    border-radius: 8px;
+  }
+
+  .history-scroll {
+    padding: 10px;
+    border-radius: 10px;
+    background-color: #fff;
+    margin-top: 20px;
+    border: 1px solid #ddd;
+  }
+
+  #clearDataBtn {
+    background-color: #dc3545;
+    margin-top: 30px;
+  }
+
+  #clearDataBtn:hover {
+    background-color: #a71d2a;
+  }
+
+  .history button,
+  #workerTableBody button {
+    padding: 6px 10px;
+    font-size: 13px;
+    margin: 2px;
+    border-radius: 5px;
+    border: none;
+    cursor: pointer;
+  }
+
+  #workerTableBody button:nth-child(1) {
+    background-color: #17a2b8;
+    color: white;
+  }
+
+  #workerTableBody button:nth-child(2) {
+    background-color: #28a745;
+    color: white;
+  }
+
+  .history button:nth-child(1) {
+    background-color: #ffc107;
+    color: black;
+  }
+
+  .history button:nth-child(2) {
+    background-color: #dc3545;
+    color: white;
+  }
+</style>
+
+
+<style>
+  .gender-container,
+  .presence-container {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin: 10px 0;
+    flex-wrap: wrap;
+  }
+
+  .gender-btn,
+  .presence-btn {
+    flex: 1;
+    max-width: 160px;
+    min-width: 100px;
+    text-align: center;
+    padding: 12px 18px;
+    font-size: 16px;
+    font-weight: 500;
+    border-radius: 10px;
+    border: 2px solid #ccc;
+    background-color: white;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+    transition: all 0.3s ease;
+  }
+
+  .gender-btn.selected.male {
+    background-color: #e6f2ff;
+    color: #0d6efd;
+    border-color: #0d6efd;
+  }
+
+  .gender-btn.selected.female {
+    background-color: #ffe6f0;
+    color: #d63384;
+    border-color: #d63384;
+  }
+
+  .presence-btn.present.selected {
+    background-color: #d4edda;
+    color: #2e7d32;
+    border-color: #a5d6a7;
+  }
+
+  .presence-btn.absent.selected {
+    background-color: #f8d7da;
+    color: #c62828;
+    border-color: #ef9a9a;
+  }
+</style>
+
+
+<style>
+  #workerTable {
+    margin: 20px auto;
+    max-width: 720px;
+    width: 100%;
+    border-collapse: collapse;
+    background-color: white;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+</style>
+
+
+<style>
+  .table-container {
+    width: 100%;
+    overflow-x: auto;
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+  }
+
+  #workerTable {
+    width: 100%;
+    max-width: 720px;
+    border-collapse: collapse;
+    background-color: white;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    font-size: 14px;
+  }
+
+  #workerTable th, #workerTable td {
+    padding: 10px;
+    text-align: center;
+    min-width: 100px;
+  }
+
+  #workerTable th {
+    background-color: #f4f4f4;
+  }
+
+  #workerTable tr:nth-child(even) {
+    background-color: #fafafa;
+  }
+</style>
+
+
+<style>
+  .history {
+    overflow-x: auto;
+    max-width: 100%;
+    padding: 10px;
+    margin: 0 auto;
+  }
+
+  .history table {
+    width: max-content;
+    min-width: 600px;
+    border-collapse: collapse;
+  }
+
+  .history th, .history td {
+    white-space: nowrap;
+  }
+</style>
+
+</head>
+<body><h1>Worker Wage & Attendance Tracker</h1>
+
+<div class="toast" id="toast"></div><form id="workerForm">
+      <input type="date" id="date" required />
+  <select id="existingWorker">
+    <option value="">Select Worker</option>
+    <option value="__new__">-- New Worker --</option>
+  </select>
+
+  <input type="text" id="nameField" placeholder="Enter New Worker Name" />  <div class="gender-container" style="display:flex; gap:10px; justify-content:center; margin-bottom:10px;">
+    <div class="gender-btn male" data-gender="male">Male</div>
+    <div class="gender-btn female" data-gender="female">Female</div>
+  
+
+
+  <div class="presence-container">
+    <div class="presence-btn present selected" data-value="yes">Present</div>
+    <div class="presence-btn absent" data-value="no">Absent</div>
+  </div>  <input type="number" id="extra" placeholder="Extra wage (₹)" min="0" />
+  <input type="number" id="advance" placeholder="Payment made(₹)" min="0" />
+
+  <textarea id="description" placeholder="Remarks"></textarea>
+  <button type="submit">Submit</button>
+</form><h2>Worker List</h2
+
+<div class="history-scroll">
+  <table id="historyTable">
+    <thead>
+      <tr><th>Name</th><th>Current Balance (₹)</th><th>Actions</th></tr>
+    </thead>
+    <tbody id="workerTableBody"></tbody>
+  </table>
+</div>
+<h3 id="totalBalanceDisplay" style="text-align:center; color:#444; margin-bottom:10px;">Total Balance: ₹0</h3>
+
+  </div>
+  <div id="historyDisplay" class="history"></div>
+  <h2>Date-wise Summary</h2>
+<div style="text-align:center; margin-bottom: 10px;">
+  <input type="date" id="summaryDatePicker">
+<button type="button" id="showDateSummaryBtn">Show Date Summary</button>
+
+</div>
+<div id="datewiseHistoryDisplay" class="history"></div>
+<div id="datewiseHistoryDisplay" class="history"></div>
+
+
+
+
+<script>
+
+  document.addEventListener("DOMContentLoaded", function () {
+
+  window.editEntry = function(name, date) {
+  const entry = workers[name].history[date];
+  if (!entry) return;
+
+  document.getElementById('existingWorker').value = name;
+  existingSelect.dispatchEvent(new Event('change'));
+
+  document.getElementById('date').value = date;
+  document.getElementById('extra').value = entry.extra;
+  document.getElementById('advance').value = entry.advance;
+  document.getElementById('description').value = entry.description;
+
+  selectedGender = workers[name].gender;
+  genderBtns.forEach(b => {
+    b.classList.remove('selected');
+    if (b.dataset.gender === selectedGender) b.classList.add('selected');
+  });
+
+  selectedPresence = entry.present ? 'yes' : 'no';
+  presenceBtns.forEach(b => {
+    b.classList.remove('selected');
+    if (b.dataset.value === selectedPresence) b.classList.add('selected');
+  });
+
+  showToast(`Editing entry for ${name} on ${date}`);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+window.deleteEntry = function(name, date) {
+  if (!confirm(`Delete entry for ${name} on ${date}?`)) return;
+
+  const entry = workers[name].history[date];
+  if (!entry) return;
+
+  workers[name].totalBalance -= entry.balanceChange;
+  delete workers[name].history[date];
+
+  localStorage.setItem('workersData', JSON.stringify(workers));
+  updateTable();
+  showHistory(name); // refresh
+  showToast('Entry deleted');
+}
+  document.getElementById('showDateSummaryBtn').addEventListener('click', () => {
+    const selectedDate = document.getElementById('summaryDatePicker').value;
+    const div = document.getElementById('datewiseHistoryDisplay');
+    div.innerHTML = ''; // clear old content
+
+    if (!selectedDate) {
+      showToast('Please select a date to view summary');
+      return;
+    }
+
+    const rows = [];
+
+    Object.entries(workers).forEach(([name, data]) => {
+      const entry = data.history[selectedDate];
+      if (entry) {
+        rows.push({
+          name,
+          
+          present: entry.present ? 'Yes' : 'No',
+          extra: entry.extra || 0,
+          advance: entry.advance || 0,
+          balance: entry.balanceChange || 0,
+          description: entry.description || ''
+        });
+      }
+    });
+
+    if (rows.length === 0) {
+      div.innerHTML = `<p style="text-align:center; color: gray;">No entries found for ${selectedDate}</p>`;
+      return;
+    }
+
+    const table = document.createElement('table');
+    table.innerHTML = `<tr><th>Name</th><th>Present</th><th>Extra</th><th>Advance</th><th>Balance</th><th>Description</th></tr>`;
+
+    rows.sort((a, b) => a.name.localeCompare(b.name)).forEach(entry => {
+      const row = document.createElement('tr');
+      row.innerHTML = `<td>${entry.name}</td><td>${entry.present}</td>
+                       <td>${entry.extra}</td><td>${entry.advance}</td><td>${entry.balance}</td><td>${entry.description}</td>`;
+      table.appendChild(row);
+    });
+
+    div.innerHTML = `<h3 style="text-align:center">Summary for ${selectedDate}</h3>`;
+    div.appendChild(table);
+  });
+  const workers = JSON.parse(localStorage.getItem('workersData')) || {};
+  updateTable();  // <-- Add this line to render existing data
+  const genderBtns = document.querySelectorAll('.gender-btn');
+  const presenceBtns = document.querySelectorAll('.presence-btn');
+  const existingSelect = document.getElementById('existingWorker');
+  const nameInput = document.getElementById('nameField');
+  let selectedGender = '';
+  let selectedPresence = 'yes';
+  document.getElementById('date').valueAsDate = new Date();
+
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 3000);
+  }
+
+  function populateExistingWorkers() {
+    existingSelect.innerHTML = '<option value="">Select Worker</option><option value="__new__">-- New Worker --</option>';
+    Object.keys(workers).sort().forEach(name => {
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      existingSelect.appendChild(opt);
+    });
+  }
+  populateExistingWorkers();
+
+  genderBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      genderBtns.forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      selectedGender = btn.dataset.gender;
+    });
+  });
+
+  presenceBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      presenceBtns.forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      selectedPresence = btn.dataset.value;
+    });
+  });
+
+  existingSelect.addEventListener('change', function () {
+    const selected = this.value;
+    if (selected === '__new__') {
+      nameInput.style.display = 'block';
+      nameInput.value = '';
+    } else {
+      nameInput.style.display = 'none';
+      nameInput.value = '';
+    }
+
+    if (selected && workers[selected]) {
+      selectedGender = workers[selected].gender;
+      genderBtns.forEach(b => {
+        b.classList.remove('selected');
+        if (b.dataset.gender === selectedGender) b.classList.add('selected');
+      });
+    }
+  });
+
+  document.getElementById('workerForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+
+    const isNew = existingSelect.value === '__new__';
+    const name = isNew ? nameInput.value.trim() : existingSelect.value;
+    const date = document.getElementById('date').value;
+    const present = selectedPresence === 'yes';
+    const extra = parseFloat(document.getElementById('extra').value) || 0;
+    const advance = parseFloat(document.getElementById('advance').value) || 0;
+    const description = document.getElementById('description').value.trim();
+
+    if (!name) return alert("Please select or enter a worker name");
+    if (!selectedGender) return alert("Please select gender");
+    if (!isNew && selectedGender !== workers[name].gender) return alert("Cannot change gender of existing worker");
+
+    if (!workers[name]) workers[name] = { gender: selectedGender, history: {}, totalBalance: 0 };
+    if (workers[name].history[date]) return alert("Entry for this worker on the selected date already exists");
+
+    const wage = selectedGender === 'male' ? 500 : 300;
+    const balanceChange = (present ? wage : 0) + extra - advance;
+
+    workers[name].history[date] = { present, extra, advance, balanceChange, description };
+    workers[name].totalBalance += balanceChange;
+
+    localStorage.setItem('workersData', JSON.stringify(workers));
+    updateTable();
+    this.reset();
+    document.getElementById('date').valueAsDate = new Date();
+    nameInput.style.display = 'none';
+    selectedGender = '';
+    selectedPresence = 'yes';
+    genderBtns.forEach(b => b.classList.remove('selected'));
+    presenceBtns.forEach(b => {
+      b.classList.remove('selected');
+      if (b.dataset.value === 'yes') b.classList.add('selected');
+    });
+    showToast('Entry submitted successfully');
+    populateExistingWorkers();
+  });
+
+  function updateTable() {
+  const tbody = document.getElementById('workerTableBody');
+  tbody.innerHTML = '';
+
+  let totalBalance = 0;
+
+  Object.entries(workers).sort().forEach(([name, data]) => {
+    const row = document.createElement('tr');
+    row.innerHTML = `<td style="color:${data.gender==='male'?'blue':'deeppink'}">${name}</td>
+                     <td>${data.totalBalance}</td>
+                     <td><button type="button" onclick="showHistory('${name}')">View History</button></td>`;
+    tbody.appendChild(row);
+
+    totalBalance += data.totalBalance;
+  });
+
+  // Update total balance display
+  const totalDisplay = document.getElementById('totalBalanceDisplay');
+  if (totalDisplay) {
+    totalDisplay.textContent = `Total Balance: ₹${totalBalance}`;
+  }
+}
+
+
+  window.showHistory = function(name) {
+  const worker = workers[name];
+  const div = document.getElementById('historyDisplay');
+  
+  if (div.innerHTML.includes(name)) {
+    div.innerHTML = '';
+    return;
+  }
+  
+  div.innerHTML = `<h3>Attendance History for ${name}</h3>`;
+  const table = document.createElement('table');
+  table.innerHTML = `<tr>
+    <th>Date</th><th>Present</th><th>Extras</th><th>Advance</th>
+    <th>Day Balance</th><th>Remarks</th><th>Actions</th>
+  </tr>`;
+  
+  Object.entries(worker.history).sort().forEach(([date, entry]) => {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td>${date}</td>
+      <td>${entry.present ? 'Yes' : 'No'}</td>
+      <td>${entry.extra || 0}</td>
+      <td>${entry.advance || 0}</td>
+      <td>${entry.balanceChange}</td>
+      <td>${entry.description || ''}</td>
+      <td>
+        <button type="button" onclick="editEntry('${name}', '${date}')">Edit</button>
+        <button type="button" onclick="deleteEntry('${name}', '${date}')">Delete</button>
+      </td>
+    `;
+    table.appendChild(row);
+  });
+  
+  div.appendChild(table);
+}
+
+  document.getElementById('clearDataBtn').addEventListener('click', () => {
+    if (confirm("Are you sure you want to clear all data?")) {
+      localStorage.removeItem('workersData');
+      location.reload();
+    }
+  });
+document.getElementById('viewDatewiseBtn').addEventListener('click', () => {
+    const div = document.getElementById('datewiseHistoryDisplay');
+    if (div.innerHTML.trim()) {
+      div.innerHTML = ''; // Toggle off
+      return;
+    }
+
+    // Collect all unique dates
+    const dateMap = {};
+    Object.entries(workers).forEach(([name, data]) => {
+      Object.entries(data.history).forEach(([date, entry]) => {
+        if (!dateMap[date]) dateMap[date] = [];
+        dateMap[date].push({
+          name,
+          gender: data.gender,
+          ...entry
+        });
+      });
+    });
+
+    const sortedDates = Object.keys(dateMap).sort();
+    div.innerHTML = '<h3 style="text-align:center">Date-wise History</h3>';
+    sortedDates.forEach(date => {
+      const section = document.createElement('div');
+      section.innerHTML = `<h4>${date}</h4>`;
+      const table = document.createElement('table');
+      table.innerHTML = `<tr><th>Name</th><th>Gender</th><th>Present</th><th>Extra</th><th>Advance</th><th>Balance</th><th>Description</th></tr>`;
+      dateMap[date].sort((a, b) => a.name.localeCompare(b.name)).forEach(entry => {
+        const row = document.createElement('tr');
+        row.innerHTML = `<td>${entry.name}</td><td>${entry.gender}</td><td>${entry.present ? 'Yes' : 'No'}</td>
+                         <td>${entry.extra}</td><td>${entry.advance}</td><td>${entry.balanceChange}</td>
+                         <td>${entry.description}</td>`;
+        table.appendChild(row);
+      });
+      section.appendChild(table);
+      div.appendChild(section);
+    });
+  });
+  const jsPDF = window.jspdf.jsPDF;
+
+document.getElementById('downloadMonthlyPdfBtn').addEventListener('click', () => {
+  const selectedMonth = document.getElementById('pdfMonthSelector').value;
+  if (!selectedMonth) {
+    showToast("Please select a month to download summary.");
+    return;
+  }
+
+  const [year, month] = selectedMonth.split("-");
+  const rows = [];
+
+  Object.entries(workers).forEach(([name, data]) => {
+    let presentDays = 0, totalExtra = 0, totalAdvance = 0, balance = 0;
+
+    Object.entries(data.history).forEach(([date, entry]) => {
+      const entryDate = new Date(date);
+      if (
+        entryDate.getFullYear() == year &&
+        entryDate.getMonth() + 1 == parseInt(month)
+      ) {
+        if (entry.present) presentDays++;
+        totalExtra += entry.extra || 0;
+        totalAdvance += entry.advance || 0;
+        balance += entry.balanceChange || 0;
+      }
+    });
+
+    if (presentDays > 0 || totalExtra > 0 || totalAdvance > 0 || balance !== 0) {
+      rows.push([
+        name,
+        data.gender,
+        presentDays,
+        totalExtra,
+        totalAdvance,
+        balance
+      ]);
+    }
+  });
+
+  if (rows.length === 0) {
+    showToast("No data found for selected month.");
+    return;
+  }
+
+  const doc = new window.jspdf.jsPDF();
+  doc.text(`Monthly Summary - ${selectedMonth}`, 14, 15);
+  doc.autoTable({
+    head: [['Name', 'Gender', 'Present Days', 'Extra (₹)', 'Advance (₹)', 'Balance (₹)']],
+    body: rows,
+    startY: 20
+  });
+
+  doc.save(`Monthly_Summary_${selectedMonth}.pdf`);
+});
+  updateTable();
+  populateExistingWorkers();
+
+  }); // end DOMContentLoaded
+
+</script>
+<hr>
+
+<div style="text-align:center; margin-top: 20px;">
+  <label for="summaryMonthPicker">Select Month for Summary:</label><br>
+  <input type="month" id="summaryMonthPicker">
+  <button type="button" id="downloadMonthlySummaryPdfBtn">Download Monthly Summary (PDF)</button>
+</div>
+
+<div style="text-align:center; margin-top: 20px;">
+  <label for="summaryYearPicker">Select Year for Summary:</label><br>
+  <input type="number" id="summaryYearPicker" placeholder="e.g. 2025" min="2000" max="2100">
+  <button type="button" id="downloadYearlySummaryPdfBtn">Download Yearly Summary (PDF)</button>
+</div>
+
+
+<button type="button" id="clearDataBtn">Clear All Data</button><div class="scrollable-table">
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const downloadBtn = document.getElementById("downloadMonthlySummaryCsvBtn");
+    if (!downloadBtn) return;
+
+    downloadBtn.addEventListener("click", function () {
+      const selectedMonth = document.getElementById("summaryMonthPicker").value;
+      if (!selectedMonth) {
+        alert("Please select a month first.");
+        return;
+      }
+
+      const [year, month] = selectedMonth.split("-");
+      const workers = JSON.parse(localStorage.getItem('workersData') || "{}");
+      const rows = [["Name", `Days Present in ${selectedMonth}`, "Total Wages", "Extras", "Total Amount"]];
+
+      let totalWages = 0;
+      let totalExtras = 0;
+      let totalAmount = 0;
+      let totalPresentDays = 0;
+
+      Object.entries(workers).forEach(([name, data]) => {
+        const gender = data.gender;
+        const wage = gender === 'male'
+          ? parseFloat(localStorage.getItem("maleWage")) || 800
+          : parseFloat(localStorage.getItem("femaleWage")) || 600;
+
+        let presentDays = 0, wageSum = 0, extraSum = 0;
+
+        Object.entries(data.history).forEach(([date, entry]) => {
+          const entryDate = new Date(date);
+          if (
+            entryDate.getFullYear() == parseInt(year) &&
+            entryDate.getMonth() + 1 == parseInt(month)
+          ) {
+            if (entry.present) {
+              presentDays += 1;
+              wageSum += wage;
+            }
+            extraSum += entry.extra || 0;
+          }
+        });
+
+        if (presentDays || wageSum || extraSum) {
+          const totalAmt = wageSum + extraSum;
+          rows.push([name, presentDays, wageSum, extraSum, `**${totalAmt}**`]);
+
+          totalWages += wageSum;
+          totalExtras += extraSum;
+          totalAmount += totalAmt;
+          totalPresentDays += presentDays;
+        }
+      });
+
+      if (rows.length === 1) {
+        alert("No data found for selected month.");
+        return;
+      }
+
+      rows.push([`**Total**`, `${totalPresentDays}`, `${totalWages}`, `${totalExtras}`, `${totalAmount}`]);
+
+      const csvContent = rows.map(e => e.join(",")).join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "worker_monthly_summary_" + selectedMonth + ".csv";
+      link.style.display = "none";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
+  });
+</script>
+
+
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const maleWageInput = document.getElementById("maleWage");
+    const femaleWageInput = document.getElementById("femaleWage");
+    const toggleBtn = document.getElementById("toggleWageSettings");
+    const wageSettings = document.getElementById("wageSettings");
+
+    // Toggle visibility
+    toggleBtn.addEventListener("click", () => {
+      wageSettings.style.display = wageSettings.style.display === "none" ? "block" : "none";
+    });
+
+    // Load wages from localStorage
+    const savedMaleWage = localStorage.getItem("maleWage");
+    const savedFemaleWage = localStorage.getItem("femaleWage");
+    maleWageInput.value = savedMaleWage || 800;
+    femaleWageInput.value = savedFemaleWage || 600;
+
+    // Save on change
+    maleWageInput.addEventListener("input", () => {
+      localStorage.setItem("maleWage", maleWageInput.value);
+    });
+    femaleWageInput.addEventListener("input", () => {
+      localStorage.setItem("femaleWage", femaleWageInput.value);
+    });
+
+    // Override form submission logic to use dynamic wage
+    const originalForm = document.getElementById("workerForm");
+    const originalHandler = originalForm.onsubmit;
+
+    originalForm.addEventListener("submit", function (e) {
+      e.preventDefault();
+
+      const isNew = existingSelect.value === '__new__';
+      const name = isNew ? nameInput.value.trim() : existingSelect.value;
+      const date = document.getElementById('date').value;
+      const present = selectedPresence === 'yes';
+      const extra = parseFloat(document.getElementById('extra').value) || 0;
+      const advance = parseFloat(document.getElementById('advance').value) || 0;
+      const description = document.getElementById('description').value.trim();
+
+      if (!name) return alert("Please select or enter a worker name");
+      if (!selectedGender) return alert("Please select gender");
+      if (!isNew && selectedGender !== workers[name].gender) return alert("Cannot change gender of existing worker");
+
+      if (!workers[name]) workers[name] = { gender: selectedGender, history: {}, totalBalance: 0 };
+      if (workers[name].history[date]) return alert("Entry for this worker on the selected date already exists");
+
+      const maleWage = parseFloat(maleWageInput.value) || 800;
+      const femaleWage = parseFloat(femaleWageInput.value) || 600;
+      const wage = selectedGender === 'male' ? maleWage : femaleWage;
+
+      const balanceChange = (present ? wage : 0) + extra - advance;
+
+      workers[name].history[date] = { present, extra, advance, balanceChange, description };
+      workers[name].totalBalance += balanceChange;
+
+      localStorage.setItem('workersData', JSON.stringify(workers));
+      updateTable();
+      originalForm.reset();
+      document.getElementById('date').valueAsDate = new Date();
+      nameInput.style.display = 'none';
+      selectedGender = '';
+      selectedPresence = 'yes';
+      genderBtns.forEach(b => b.classList.remove('selected'));
+      presenceBtns.forEach(b => {
+        b.classList.remove('selected');
+        if (b.dataset.value === 'yes') b.classList.add('selected');
+      });
+      showToast('Entry submitted successfully');
+      populateExistingWorkers();
+    });
+  });
+</script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const excelBtn = document.getElementById("downloadMonthlySummaryExcelBtn");
+    if (!excelBtn) return;
+
+    excelBtn.addEventListener("click", function () {
+      const selectedMonth = document.getElementById("summaryMonthPicker").value;
+      if (!selectedMonth) {
+        alert("Please select a month first.");
+        return;
+      }
+
+      const [year, month] = selectedMonth.split("-");
+      const workers = JSON.parse(localStorage.getItem('workersData') || "{}");
+
+      const data = [["Name", `Days Present in ${selectedMonth}`, "Total Wages", "Extras", "Total Amount"]];
+
+      let totalWages = 0, totalExtras = 0, totalAmount = 0, totalDays = 0;
+
+      Object.entries(workers).forEach(([name, info]) => {
+        const gender = info.gender;
+        const wage = gender === 'male'
+          ? parseFloat(localStorage.getItem("maleWage")) || 800
+          : parseFloat(localStorage.getItem("femaleWage")) || 600;
+
+        let days = 0, wages = 0, extras = 0;
+
+        Object.entries(info.history).forEach(([date, entry]) => {
+          const d = new Date(date);
+          if (d.getFullYear() == year && (d.getMonth() + 1) == parseInt(month)) {
+            if (entry.present) {
+              days++;
+              wages += wage;
+            }
+            extras += entry.extra || 0;
+          }
+        });
+
+        if (days || wages || extras) {
+          const total = wages + extras;
+          data.push([name, days, wages, extras, total]);
+          totalWages += wages;
+          totalExtras += extras;
+          totalAmount += total;
+          totalDays += days;
+        }
+      });
+
+      if (data.length === 1) {
+        alert("No data found for selected month.");
+        return;
+      }
+
+      // Add total row with styling hint
+      data.push(["Total", totalDays, totalWages, totalExtras, totalAmount]);
+
+      // Create workbook and worksheet
+      const ws = XLSX.utils.aoa_to_sheet(data);
+
+      
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Monthly Summary");
+
+      XLSX.writeFile(wb, `Worker_Monthly_Summary_${selectedMonth}.xlsx`);
+    });
+  });
+</script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const pdfBtn = document.getElementById("downloadMonthlySummaryPdfBtn");
+    if (!pdfBtn) return;
+
+    pdfBtn.addEventListener("click", function () {
+      const selectedMonth = document.getElementById("summaryMonthPicker").value;
+      if (!selectedMonth) {
+        alert("Please select a month first.");
+        return;
+      }
+
+      const [year, month] = selectedMonth.split("-");
+      const workers = JSON.parse(localStorage.getItem('workersData') || "{}");
+
+      const data = [["Name", `Days Present in ${selectedMonth}`, "Total Wages", "Extras", "Total Amount"]];
+
+      let totalWages = 0, totalExtras = 0, totalAmount = 0, totalDays = 0;
+
+      Object.entries(workers).forEach(([name, info]) => {
+        const gender = info.gender;
+        const wage = gender === 'male'
+          ? parseFloat(localStorage.getItem("maleWage")) || 800
+          : parseFloat(localStorage.getItem("femaleWage")) || 600;
+
+        let days = 0, wages = 0, extras = 0;
+
+        Object.entries(info.history).forEach(([date, entry]) => {
+          const d = new Date(date);
+          if (d.getFullYear() == year && (d.getMonth() + 1) == parseInt(month)) {
+            if (entry.present) {
+              days++;
+              wages += wage;
+            }
+            extras += entry.extra || 0;
+          }
+        });
+
+        if (days || wages || extras) {
+          const total = wages + extras;
+          data.push([name, days, wages, extras, total]);
+          totalWages += wages;
+          totalExtras += extras;
+          totalAmount += total;
+          totalDays += days;
+        }
+      });
+
+      if (data.length === 1) {
+        alert("No data found for selected month.");
+        return;
+      }
+
+      // Add total row
+      data.push(["Total", totalDays, totalWages, totalExtras, totalAmount]);
+
+      // Generate PDF using jsPDF and autoTable
+      const doc = new jspdf.jsPDF();
+      doc.text(`Monthly Summary - ${selectedMonth}`, 14, 15);
+
+      doc.autoTable({
+        startY: 20,
+        head: [data[0]],
+        body: data.slice(1),
+        styles: {
+          fontSize: 10,
+          halign: 'center',
+        },
+        headStyles: {
+          fillColor: [41, 128, 185], // blue header
+          textColor: 255,
+          fontStyle: 'bold'
+        },
+        bodyStyles: {
+          fontStyle: 'normal'
+        },
+        didParseCell: function (dataCell) {
+          const rowIndex = dataCell.row.index;
+          const colIndex = dataCell.column.index;
+
+          // Highlight total row
+          if (rowIndex === data.length - 2) {
+            dataCell.cell.styles.fontStyle = 'bold';
+            dataCell.cell.styles.fillColor = [230, 230, 230];
+          }
+
+          // Bold the "Total Amount" column (index 4)
+          if (colIndex === 4) {
+            dataCell.cell.styles.fontStyle = 'bold';
+          }
+        }
+      });
+
+      doc.save(`Worker_Monthly_Summary_${selectedMonth}.pdf`);
+    });
+  });
+
+  
+  document.addEventListener("DOMContentLoaded", function () {
+    const yearBtn = document.getElementById("downloadYearlySummaryPdfBtn");
+    if (!yearBtn) return;
+
+    yearBtn.addEventListener("click", function () {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+
+      const selectedYear = document.getElementById("summaryYearPicker").value;
+      if (!selectedYear) {
+        alert("Please enter a year first.");
+        return;
+      }
+
+      const workers = JSON.parse(localStorage.getItem('workersData') || "{}");
+
+      const data = [["Name", `Days Present in ${selectedYear}`, "Total Wages", "Extras", "Total Amount"]];
+      let totalWages = 0, totalExtras = 0, totalAmount = 0, totalDays = 0;
+
+      Object.entries(workers).forEach(([name, info]) => {
+        const gender = info.gender;
+        const wage = gender === 'male'
+          ? parseFloat(localStorage.getItem("maleWage")) || 800
+          : parseFloat(localStorage.getItem("femaleWage")) || 600;
+
+        let days = 0, wages = 0, extras = 0;
+
+        Object.entries(info.history).forEach(([date, entry]) => {
+          const d = new Date(date);
+          if (d.getFullYear() == selectedYear) {
+            if (entry.present) {
+              days++;
+              wages += wage;
+            }
+            extras += entry.extra || 0;
+          }
+        });
+
+        if (days || wages || extras) {
+          const total = wages + extras;
+          data.push([name, days, wages, extras, total]);
+          totalWages += wages;
+          totalExtras += extras;
+          totalAmount += total;
+          totalDays += days;
+        }
+      });
+
+      if (data.length === 1) {
+        alert("No data found for selected year.");
+        return;
+      }
+
+      data.push(["Total", totalDays, totalWages, totalExtras, totalAmount]);
+
+      doc.text(`Yearly Summary - ${selectedYear}`, 14, 15);
+      doc.autoTable({
+        startY: 20,
+        head: [data[0]],
+        body: data.slice(1),
+        headStyles: {
+          fillColor: [41, 128, 185],
+          textColor: 255,
+          fontStyle: 'bold'
+        },
+        styles: {
+          fontSize: 10,
+          halign: 'center',
+        },
+        didParseCell: function (dataCell) {
+          const rowIndex = dataCell.row.index;
+          const colIndex = dataCell.column.index;
+
+          // Total row
+          if (rowIndex === data.length - 2) {
+            dataCell.cell.styles.fontStyle = 'bold';
+            dataCell.cell.styles.fillColor = [230, 230, 230];
+          }
+
+          // Total Amount column (5th column)
+          if (colIndex === 4) {
+            dataCell.cell.styles.fontStyle = 'bold';
+          }
+        }
+      });
+
+      doc.save(`Worker_Yearly_Summary_${selectedYear}.pdf`);
+    });
+  });
+  
+
+</script>
+<hr>
+<div style="text-align:center; margin: 20px;">
+  <button onclick="backupData()">🔄 Backup Data to File</button>
+  <button onclick="document.getElementById('restoreInput').click()">♻️ Restore Data from File</button>
+  <input type="file" id="restoreInput" accept=".json" style="display: none;" onchange="restoreData(this)" />
+</div>
+  
+  
+<script>
+function backupData() {
+  const data = localStorage.getItem('workersData');
+  const blob = new Blob([data], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'workers_backup.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  alert('Backup downloaded!');
+}
+
+function restoreData(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      localStorage.setItem('workersData', JSON.stringify(data));
+      alert('Data restored! Refreshing...');
+      location.reload();
+    } catch (err) {
+      alert('Invalid backup file!');
+    }
+  };
+  reader.readAsText(file);
+}
+</script>
+</body>
+</html>
