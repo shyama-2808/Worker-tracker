@@ -1,6 +1,6 @@
 {
-  "name": "Worker Tracker",
-  "short_name": "Worker",
+  "name": "Workers Tracker",
+  "short_name": "Workers Tracker",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#ffffff",
